@@ -1,0 +1,11 @@
+*.obj
+*.exe
+*.pdb
+*.user
+*.suo
+*.log
+[Bb]in
+[Dd]ebug*/
+[Rr]elease*/
+[Oo]bj
+[Tt]est[Rr]esult*
