@@ -1,9 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestFO", "TestFO\TestFO.csproj", "{01DCD5FD-5850-4F34-B424-43F368B785A2}"
-EndProject
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastORM", "FastORM\FastORM.csproj", "{18043127-4480-42CA-874B-F598D78CF2F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastORM.Test", "FastORM.Test\FastORM.Test.csproj", "{54484034-FE5F-41AC-9F7F-3A603B98E55E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,14 +11,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{01DCD5FD-5850-4F34-B424-43F368B785A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{01DCD5FD-5850-4F34-B424-43F368B785A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{01DCD5FD-5850-4F34-B424-43F368B785A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{01DCD5FD-5850-4F34-B424-43F368B785A2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{18043127-4480-42CA-874B-F598D78CF2F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{18043127-4480-42CA-874B-F598D78CF2F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18043127-4480-42CA-874B-F598D78CF2F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{18043127-4480-42CA-874B-F598D78CF2F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54484034-FE5F-41AC-9F7F-3A603B98E55E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54484034-FE5F-41AC-9F7F-3A603B98E55E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54484034-FE5F-41AC-9F7F-3A603B98E55E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54484034-FE5F-41AC-9F7F-3A603B98E55E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
