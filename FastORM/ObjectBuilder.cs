@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Data.SQLite;
+using System.Reflection;
 
 namespace FastORM
 {    
@@ -32,20 +33,17 @@ namespace FastORM
         /// Key: Class Type
         /// Value -> key : Column Name, value : Property Name
         /// </summary>
-        Dictionary<Type, Dictionary<String, String>> ColumnMapCollection;
+        private Dictionary<Type, Dictionary<String, String>> ColumnMapCollection;
         /// <summary>
         /// Key: Class Type
         /// Value -> key : Column Name, value : Column Type
         /// </summary>
-        Dictionary<Type, Dictionary<String, Type>> TypeMapCollection;
+        private Dictionary<Type, Dictionary<String, Type>> TypeMapCollection;
 
         private static ObjectBuilder _instance = null;
         public static ObjectBuilder GetInstance()
         {
-            if (_instance == null)
-                _instance = new ObjectBuilder();
-
-            return _instance;
+            return _instance = _instance ?? new ObjectBuilder();
         }
 
         private ObjectBuilder()
@@ -65,10 +63,15 @@ namespace FastORM
             TypeMapCollection.Clear();
         }
 
+        /// <summary>
+        /// A object for Class-Table mapped column, properties and type 
+        /// </summary>
+        /// <param name="t"> type of object </param>
+        /// <returns></returns>
         public MapTable GetMapTable(Type t)
         {
             if (!TableMapCollection.ContainsKey(t))
-                AddedToTableMapCollection(t);
+                AddToTableMapCollection(t);
 
             MapTable ret = new MapTable();
 
@@ -80,6 +83,7 @@ namespace FastORM
                     ret.TableName = TableMapCollection[t];
                     ret.ColumnAndProperties = ColumnMapCollection[t];
                     ret.ColumnAndType = TypeMapCollection[t];
+                    ret.PrimaryId = GetPrimaryColumn(t);
                 }
             }
             catch { throw; }
@@ -88,7 +92,12 @@ namespace FastORM
 
         }
 
-        private void AddedToTableMapCollection(Type t)
+        /// <summary>
+        /// Check the provided object  has any table mapping attributes, if exist then process 
+        /// all mapped properties 
+        /// </summary>
+        /// <param name="t"></param>
+        private void AddToTableMapCollection(Type t)
         {
             var list = (TableAttribute[])t.GetCustomAttributes(typeof(TableAttribute), false);
 
@@ -101,22 +110,33 @@ namespace FastORM
             if (!String.IsNullOrEmpty(mapTableName))
             {
                 TableMapCollection.Add(t, mapTableName);
-                AddedToColumMapCollection(t);
+                AddToColumMapCollection(t);
             }
         }
 
-        private void AddedToColumMapCollection(Type t)
+        /// <summary>
+        /// Find all mapped properties and add in internal dictionary 
+        /// </summary>
+        /// <param name="t"></param>
+        private void AddToColumMapCollection(Type t)
         {
             if (!ColumnMapCollection.ContainsKey(t))
             {
-                var props = t.GetProperties().Where(p => p.IsDefined(typeof(ColumnAttribute), false));
+                var props = t.GetProperties().Where(p => p.IsDefined(typeof(ColumnAttribute), false)
+                    || p.IsDefined(typeof(IdAttribute), false) );
+
                 Dictionary<String, String> list = new Dictionary<string, string>();
                 Dictionary<String, Type> typelist = new Dictionary<string, Type>();
 
-                foreach (System.Reflection.PropertyInfo info in props)
+                foreach (PropertyInfo info in props)
                 {
-                    var data = info.GetCustomAttributes(typeof(ColumnAttribute), false);
-                    String columName = "";                    
+                    String columName = "";    
+
+                    // if Id attribute define then read Id attributes otherwise ColumnAttribute
+                    var data = info.IsDefined(typeof(IdAttribute), false)
+                        ? info.GetCustomAttributes(typeof(IdAttribute), false)
+                        : info.GetCustomAttributes(typeof(ColumnAttribute), false);
+                                    
                     if (data.Length > 0)
                         columName = data.GetValue(0).ToString();
 
@@ -131,5 +151,33 @@ namespace FastORM
                 TypeMapCollection.Add(t, typelist);
             }
         }
+    
+        /// <summary>
+        /// Find the PrimaryKey column 
+        /// </summary>
+        /// <param name="t"> type of object</param>
+        /// <returns></returns>
+        private String GetPrimaryColumn(Type t)
+        {
+            String columName = String.Empty;
+
+            var props = t.GetProperties().Where(p => p.IsDefined(typeof(IdAttribute), false));
+
+            foreach (PropertyInfo info in props)
+            {
+                var data = info.GetCustomAttributes(typeof(IdAttribute), false);
+
+                if (data.Length > 0)
+                {
+                    columName = data.GetValue(0).ToString();
+                    // Single column primary key is supported only 
+                    break;
+                }
+
+            }
+
+            return columName;
+        }
+    
     }     
 }

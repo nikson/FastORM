@@ -13,11 +13,16 @@ namespace FastORM
     public class MapTable
     {
         public String TableName { get; set; }
+        /// <summary>
+        /// Currently only one primary key is supported. ToDo.....
+        /// </summary>
+        public String PrimaryId { get; set; }
         public Type ClassName { get; set; }
         public Dictionary<String, String> ColumnAndProperties { get; set; }
         public Dictionary<String, Type> ColumnAndType { get; set; }
         public Dictionary<String, Object> PropertiesAndValues { get; set; }
 
+        #region SQL Query Property
         public String SelectQuery
         {
             get
@@ -78,6 +83,8 @@ namespace FastORM
                 return query;
             }
         }
+
+        #endregion 
 
         public MapTable()
         {
