@@ -17,7 +17,7 @@ namespace FastORM
         public TableAttribute(String tableName)
         {
             if (String.IsNullOrEmpty(tableName))
-                throw new NotSupportedException();
+                throw new ArgumentNullException();
 
             _tableName = tableName;
         }
@@ -40,7 +40,7 @@ namespace FastORM
         public ColumnAttribute(String columnName)
         {
             if (String.IsNullOrEmpty(columnName))
-                throw new NotSupportedException();
+                throw new ArgumentNullException();
 
             _columName = columnName;
         }
@@ -62,7 +62,7 @@ namespace FastORM
         public IdAttribute(String columnName)
         {
             if (String.IsNullOrEmpty(columnName))
-                throw new NotSupportedException();
+                throw new ArgumentNullException();
 
             _columName = columnName;
         }
