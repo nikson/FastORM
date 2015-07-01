@@ -9,7 +9,7 @@ namespace FastORM.Test
     [Table("test_user")]
     public class User
     {
-        [Column("id")]
+        [Id("id")]
         public int id { get; set; }
         [Column("username")]
         public string username { get; set; }
