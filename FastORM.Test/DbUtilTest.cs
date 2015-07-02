@@ -3,54 +3,87 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using FastORM;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FastORM.Test
 {
+    [TestClass]
     public class DbUtilTest
     {
-        DbUtil dbm = DbUtil.CreateInstance();
-
-        public void test()
+        [TestMethod]
+        public void TestMethod1()
         {
-            try
-            {
-                String query = "select count(*) from test_user";
+            DbUtil dbm = DbUtil.CreateInstance();
 
-                object result = dbm.ExecuteQuery(query, false);
+            String query = "select count(*) from test_user";
 
-                Console.WriteLine("result : " + result.ToString());
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.GetBaseException().Message);
-            }
+            object result = dbm.ExecuteQuery(query, false);
 
+            Console.WriteLine("result : " + result.ToString());
+            Assert.IsTrue(true);
         }
 
-        public void test1()
+        [TestMethod]
+        public void TestMethod2()
         {
-            try
-            {
-                User u = new User();
-                u.id = 2;
-                u.name = "NKP";
-                u.password = "paul";
-                u.username = "paul";
+            DbUtil dbm = DbUtil.CreateInstance();
+            
 
-                int a = dbm.InsertOrUpdate(u, false);
-                //int a = dbm.Delete(u);
-                List<User> data = dbm.GetAll<User>();
+            User u = new User();
+            u.id = 2;
+            u.name = "NKP";
+            u.password = "paul";
+            u.username = "paul";
 
-                Console.WriteLine("result : " + a.ToString());
+            int a = dbm.InsertOrUpdate(u, false);
+            Assert.AreEqual(1, a);
+        }
 
-                //int id = 2;
-                //User u = dbm.Get<User>(id);                
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.GetBaseException().Message);
-            }
+        [TestMethod]
+        public void TestMethod3()
+        {
+            DbUtil dbm = DbUtil.CreateInstance();
 
+            int id = 2;
+            var u = dbm.Get<User>(id.ToString());            
+            Assert.AreEqual("NKP", u.name);
+            u.name = "Nikson2";
+            int a = dbm.InsertOrUpdate(u, true);
+            Assert.AreEqual(1, a);            
+        }
+
+        [TestMethod]
+        public void TestMethod4()
+        {
+            DbUtil dbm = DbUtil.CreateInstance();
+
+            List<User> data = dbm.GetAll<User>().ToList();
+
+            Assert.AreEqual(0, data.Count);
+        }
+
+        [TestMethod]
+        public void TestMethod5()
+        {
+            DbUtil dbm = DbUtil.CreateInstance();
+
+
+            var u = new User();
+            u.id = 2;
+
+            int count = dbm.Delete(u);
+
+            Assert.AreEqual(1, count);
+        }
+
+        [TestMethod]
+        public void TestMethod6()
+        {
+            DbUtil dbm = DbUtil.CreateInstance();
+
+            int count = dbm.Delete<User>();
+
+            Assert.AreEqual(0, count);
         }
     }
 }
