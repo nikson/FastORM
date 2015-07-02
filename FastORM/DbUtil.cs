@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data.SQLite;
 using FastORM;
+using System.IO;
 
 namespace FastORM
 {
@@ -24,9 +25,8 @@ namespace FastORM
         private String connectionStr = @"Data Source={0};Version=3;New={1};Compress={2};";
         // Data Source=testdb.s3db;Version=3;New=False;Compress=True;
 
-        /***********   CREATE ONLY A SINGLE INSTANCE     ********/
-        ObjectBuilder fastORM;
-        /*************************************/
+        //   CREATE ONLY A SINGLE INSTANCE   
+        private ObjectBuilder fastORM;
 
         public static DbUtil CreateInstance()
         {
@@ -38,16 +38,23 @@ namespace FastORM
             return _instance;
         }
 
-        private DbUtil()
+        public DbUtil()
         {
-            String path = AppDomain.CurrentDomain.BaseDirectory;
-            //String path = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase);
-            DbFilename = "testdb.s3db";
-            DbSource = path + "\\" + DbFilename;
             DbIsNew = false;
             DbIsCompress = true;
 
-            fastORM = ObjectBuilder.GetInstance();
+            fastORM = new ObjectBuilder();
+
+            //SetDbProperty("testdb.s3db");
+        }
+
+        // ToDo: Add provider, and connection string
+        public DbUtil SetDbProperty(String dbFile)
+        {
+            String path = AppDomain.CurrentDomain.BaseDirectory;
+            DbFilename = dbFile;
+            DbSource = Path.Combine(path, DbFilename);
+            return this;
         }
 
         public SQLiteConnection GetConnection()
@@ -63,11 +70,11 @@ namespace FastORM
         {
             MapTable mt = fastORM.GetMapTable(typeof(T));
 
-            using (GetConnection())
+            using (var con = GetConnection())
             {
-                using (_command = new SQLiteCommand(_singleCons))
+                using (_command = new SQLiteCommand(con))
                 {
-                    _command.CommandText = String.Format(mt.SelectQuery, mt.TableName, Id);
+                    _command.CommandText = mt.GetSelectQuery(Id);
                     _command.Prepare();
 
                     using (_reader = _command.ExecuteReader())
@@ -85,16 +92,16 @@ namespace FastORM
             return (T)ret;
         }
 
-        public List<T> GetAll<T>()
+        public IList<T> GetAll<T>()
         {
             MapTable mt = fastORM.GetMapTable(typeof(T));
-            List<T> data = new List<T>();
+            IList<T> data = new List<T>();
 
-            using (GetConnection())
+            using (var con = GetConnection())
             {
-                using (_command = new SQLiteCommand(_singleCons))
+                using (_command = new SQLiteCommand(con))
                 {
-                    _command.CommandText = String.Format(mt.SelectAllQuery, mt.TableName);
+                    _command.CommandText = mt.GetSelectQuery();
                     _command.Prepare();
 
                     using (_reader = _command.ExecuteReader())
@@ -109,7 +116,6 @@ namespace FastORM
                 }
             }
 
-
             return data;
         }
 
@@ -119,7 +125,39 @@ namespace FastORM
 
             MapTable mt = fastORM.GetMapTable(obj.GetType());
 
-            SQLiteTransaction trans = null;
+            try
+            {
+                using (var con = GetConnection())
+                {
+                    using (_command = new SQLiteCommand(con))
+                    {
+                        _command.CommandText = (isUpdate) ? mt.GetUpdateQuery() : mt.GetInsertQuery();
+                        _command.Parameters.AddRange(mt.BindAllParams<SQLiteParameter>(obj).ToArray());
+                        _command.Prepare();
+
+                        using (var trans = con.BeginTransaction())
+                        {
+                            retval = _command.ExecuteNonQuery();
+                            trans.Commit();
+                        }
+
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+
+            return retval;
+        }
+
+        public int Delete<T>()
+        {
+            int retval = 0;
+
+            MapTable mt = fastORM.GetMapTable(typeof(T));
 
             try
             {
@@ -127,22 +165,19 @@ namespace FastORM
                 {
                     using (_command = new SQLiteCommand(con))
                     {
-                        _command.CommandText = (isUpdate) ? mt.UpdateQuery : mt.InsertQuery;
-                        _command.Parameters.AddRange(mt.BindAllParams(obj, true).ToArray());
+                        _command.CommandText = mt.GetDeleteQuery();
                         _command.Prepare();
 
-                        trans = con.BeginTransaction();
-
-                        retval = _command.ExecuteNonQuery();
-                        trans.Commit();
+                        using (var trans = con.BeginTransaction())
+                        {
+                            retval = _command.ExecuteNonQuery();
+                            trans.Commit();
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                if (trans != null)
-                    trans.Rollback();
-                retval = 0;
                 throw ex;
             }
 
@@ -156,31 +191,28 @@ namespace FastORM
 
             MapTable mt = fastORM.GetMapTable(obj.GetType());
 
-            SQLiteTransaction trans = null;
-
             try
             {
-                int Id = (int)obj.GetType().GetProperty(mt.ColumnAndProperties["id"]).GetValue(obj, null);
+                object value = obj.GetType().GetProperty(mt.ColumnAndProperties[mt.PrimaryId]).GetValue(obj, null);
+                var Id = Convert.ChangeType(value, mt.ColumnAndType[mt.PrimaryId], null);
 
                 using (var con = GetConnection())
                 {
                     using (_command = new SQLiteCommand(con))
                     {
-                        _command.CommandText = String.Format(mt.DeleteQuery, mt.TableName, Id);
+                        _command.CommandText = mt.GetDeleteQuery(Id.ToString());
                         _command.Prepare();
 
-                        trans = con.BeginTransaction();
-
-                        retval = _command.ExecuteNonQuery();
-                        trans.Commit();
+                        using (var trans = con.BeginTransaction())
+                        {
+                            retval = _command.ExecuteNonQuery();
+                            trans.Commit();
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                if (trans != null)
-                    trans.Rollback();
-                retval = 0;
                 throw ex;
             }
 
@@ -218,17 +250,6 @@ namespace FastORM
             }
 
             return ret;
-        }
-    }
-
-    public class DbVersion
-    {
-        public static String Version_1_1()
-        {
-            String query = "create table user2 ( id int primary key, name char(50) );";
-
-            return query;
-
         }
     }
 }
