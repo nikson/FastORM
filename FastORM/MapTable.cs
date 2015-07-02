@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using System.Data;
+using System.Data.Common;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace FastORM
@@ -22,138 +24,11 @@ namespace FastORM
         public Dictionary<String, Type> ColumnAndType { get; set; }
         public Dictionary<String, Object> PropertiesAndValues { get; set; }
 
-        #region SQL Query Property
-        public String SelectQuery
-        {
-            get
-            {
-                if (ClassName == null)
-                    throw new ArgumentException("Class type is null");
-
-                String query = "SELECT * FROM {0} WHERE ID = {1}";
-
-                return query;
-            }
-        }
-
-        public String SelectAllQuery
-        {
-            get
-            {
-                if (ClassName == null)
-                    throw new ArgumentException("Class type is null");
-
-                String query = "SELECT * FROM {0}";
-
-                return query;
-            }
-        }
-
-        public String InsertQuery
-        {
-            get
-            {
-                if (ClassName == null)
-                    throw new ArgumentNullException("Class Type is null");
-
-                return GetInsertQuery(ClassName);
-            }
-        }
-
-        public String UpdateQuery
-        {
-            get
-            {
-                if (ClassName == null)
-                    throw new ArgumentException("Class type is null");
-
-                return GetUpdateQuery(ClassName);
-            }
-        }
-
-        public String DeleteQuery
-        {
-            get
-            {
-                if (ClassName == null)
-                    throw new ArgumentException("Class type is null");
-
-                String query = "Delete FROM {0} WHERE ID = {1}";
-
-                return query;
-            }
-        }
-
-        #endregion 
-
         public MapTable()
         {
             ColumnAndProperties = new Dictionary<string, string>();
             ColumnAndType = new Dictionary<string, Type>();
             PropertiesAndValues = new Dictionary<string, Object>();
-        }
-
-        private String GetInsertQuery(Type type)
-        {
-            MapTable map = this;
-            String sql = "INSERT INTO {0}({1}) VALUES({2});";
-
-            if (!String.IsNullOrEmpty(map.TableName))
-            {
-                String cols = String.Empty;
-                String val = String.Empty;
-
-                List<String> Column = map.ColumnAndProperties.Keys.ToList();
-
-                for (int i = 0; i < Column.Count; i++)
-                {
-                    cols += ((cols.Length != 0) ? ", " : "") + Column[i];
-                    val += ((val.Length != 0) ? ", " : "") + " :" + Column[i];      // + " ? ";              
-                }
-
-                sql = String.Format(sql, map.TableName, cols, val);
-            }
-            else
-            {
-                sql = String.Empty;
-            }
-
-            return sql;
-        }
-
-        private String GetUpdateQuery(Type type)
-        {
-            MapTable map = this;
-            String sql = "UPDATE {0} SET {1} WHERE ID={2};";
-
-            if (!String.IsNullOrEmpty(map.TableName))
-            {
-
-                String ustr = String.Empty;
-                String idStr = String.Empty;
-
-                List<String> Column = map.ColumnAndProperties.Keys.ToList();
-
-                for (int i = 0; i < Column.Count; i++)
-                {
-                    if (Column[i].ToLower().Equals("id"))
-                    {
-                        idStr = ":" + Column[i].ToLower();
-                        continue;
-                    }
-
-                    ustr += ((ustr.Length != 0) ? ", " : "") + Column[i]
-                        + " = :" + Column[i];
-                }
-
-                sql = String.Format(sql, map.TableName, ustr, idStr);
-            }
-            else
-            {
-                sql = String.Empty;
-            }
-
-            return sql;
         }
 
         public T GetMapValuedObject<T>()
@@ -167,13 +42,14 @@ namespace FastORM
             {
                 foreach (String propName in ColumnAndProperties.Values.ToList())
                 {
-                    System.Reflection.PropertyInfo propInfo = ret.GetType().GetProperty(propName);
+                    PropertyInfo propInfo = ret.GetType().GetProperty(propName);
 
                     if (propInfo != null)
                     {
                         try
                         {
-                            object cval = PropertiesAndValues[propName];
+                            object cval = PropertiesAndValues.ContainsKey(propName) ? PropertiesAndValues[propName]
+                                : DBNull.Value;
                             object value = null;
 
                             if (cval != DBNull.Value)
@@ -196,25 +72,6 @@ namespace FastORM
             }
 
             return ret;
-        }
-
-        public Boolean SetPropertyValueFromReader(SQLiteDataReader reader)
-        {
-            PropertiesAndValues.Clear();
-
-            try
-            {
-                foreach (string cols in ColumnAndType.Keys.ToList())
-                {
-                    this.PropertiesAndValues[this.ColumnAndProperties[cols]] = reader[cols];
-                }
-            }
-            catch
-            {
-                throw;
-            }
-
-            return true;
         }
 
         public Boolean SetPropertyValueFromObject(object ret)
@@ -243,21 +100,132 @@ namespace FastORM
             return retval;
         }
 
-        public List<SQLiteParameter> BindAllParams(Object obj, bool isNameBinding)
+
+        #region SQL Query Helper
+
+        private void Validate()
         {
-            try
-            {
-                bool ret = SetPropertyValueFromObject(obj);
+            if (ClassName == null)
+                throw new ArgumentException("Class type is null");
 
-            }
-            catch { throw; }
+            if (String.IsNullOrEmpty(PrimaryId))
+                throw new ArgumentNullException("No primary key property found!");
+        }
+        public String GetSelectQuery(String Id)
+        {
+            Validate();
 
-            return BindAllParams(true);
+            String query = "SELECT * FROM {0} WHERE {1} = {2}";
+
+            return String.Format(query, TableName, PrimaryId, Id);
         }
 
-        private List<SQLiteParameter> BindAllParams(bool isNameBinding)
+        public String GetSelectQuery()
         {
-            List<SQLiteParameter> collection = new List<SQLiteParameter>();
+            if (ClassName == null)
+                throw new ArgumentException("Class type is null");
+
+            return String.Format("SELECT * FROM {0}", TableName);
+
+        }
+
+        public String GetDeleteQuery()
+        {
+            String query = "Delete FROM {0}";
+
+            return String.Format(query, TableName);
+        }
+
+        public String GetDeleteQuery(String Id)
+        {
+            String query = "Delete FROM {0} WHERE {1} = {2}";
+
+            return String.Format(query, TableName, PrimaryId, Id); ;
+        }
+
+        public String GetInsertQuery()
+        {
+            MapTable map = this;
+            String sql = "INSERT INTO {0}({1}) VALUES({2});";
+
+            if (!String.IsNullOrEmpty(map.TableName))
+            {
+                String cols = String.Empty;
+                String val = String.Empty;
+
+                List<String> Column = map.ColumnAndProperties.Keys.ToList();
+
+                for (int i = 0; i < Column.Count; i++)
+                {
+                    cols += ((cols.Length != 0) ? ", " : "") + Column[i];
+                    val += ((val.Length != 0) ? ", " : "") + " :" + Column[i];      // + " ? ";              
+                }
+
+                sql = String.Format(sql, map.TableName, cols, val);
+            }
+            else
+            {
+                sql = String.Empty;
+            }
+
+            return sql;
+        }
+
+        public String GetUpdateQuery()
+        {
+            String sql = "UPDATE {0} SET {1} WHERE ID={2};";
+
+            if (!String.IsNullOrEmpty(TableName))
+            {
+
+                String ustr = String.Empty;
+                String idStr = String.Empty;
+
+                List<String> Column = ColumnAndProperties.Keys.ToList();
+
+                for (int i = 0; i < Column.Count; i++)
+                {
+                    if (Column[i].Equals(PrimaryId))
+                    {
+                        idStr = ":" + Column[i].ToLower();
+                        continue;
+                    }
+
+                    ustr += ((ustr.Length != 0) ? ", " : "") + Column[i]
+                        + " = :" + Column[i];
+                }
+
+                sql = String.Format(sql, TableName, ustr, idStr);
+            }
+            else
+            {
+                sql = String.Empty;
+            }
+
+            return sql;
+        }
+
+        public Boolean SetPropertyValueFromReader(DbDataReader reader)
+        {
+            PropertiesAndValues.Clear();
+
+            // ToDo: may raise exception.....
+            foreach (string cols in ColumnAndType.Keys.ToList())
+            {
+                this.PropertiesAndValues[this.ColumnAndProperties[cols]] = reader[cols];
+            }
+
+            return true;
+        }
+
+        public IList<T> BindAllParams<T>(Object obj) where T : DbParameter
+        {
+            return (SetPropertyValueFromObject(obj) == true) ? BindAllParams<T>(true) : new List<T>();
+        }
+
+        private IList<T> BindAllParams<T>(bool isNameBinding) where T : DbParameter
+        {
+            List<T> collection = new List<T>();
 
             foreach (String cols in ColumnAndProperties.Keys.ToList())
             {
@@ -267,7 +235,11 @@ namespace FastORM
 
                     object value = Convert.ChangeType(temp, ColumnAndType[cols], null);
 
-                    SQLiteParameter sqlparam = new SQLiteParameter(cols, value);
+                    T sqlparam = Activator.CreateInstance<T>();
+                    sqlparam.ParameterName = cols;
+                    //sqlparam.SourceColumn = cols;
+                    sqlparam.Value = value;
+
 
                     collection.Add(sqlparam);
                 }
@@ -279,6 +251,8 @@ namespace FastORM
 
             return collection;
         }
+
+        #endregion
     }
 
 }
