@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Data.SQLite;
 using System.Reflection;
 
 namespace FastORM
@@ -46,7 +45,7 @@ namespace FastORM
             return _instance = _instance ?? new ObjectBuilder();
         }
 
-        private ObjectBuilder()
+        public ObjectBuilder()
         {
             MapCollectionBootstrap();
         }
@@ -70,15 +69,16 @@ namespace FastORM
         /// <returns></returns>
         public MapTable GetMapTable(Type t)
         {
+            MapTable ret = null;
+
             if (!TableMapCollection.ContainsKey(t))
                 AddToTableMapCollection(t);
-
-            MapTable ret = new MapTable();
 
             try
             {
                 if (TableMapCollection.ContainsKey(t))
                 {
+                    ret = new MapTable();
                     ret.ClassName = t;
                     ret.TableName = TableMapCollection[t];
                     ret.ColumnAndProperties = ColumnMapCollection[t];
